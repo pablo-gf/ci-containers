@@ -77,6 +77,26 @@ RUN opam init --yes --auto-setup && opam install --confirm-level=unsafe-yes --de
 # install ajv for CBOM validation
 RUN npm -g install ajv ajv-cli
 
+# set up Kyberslash patch for Valgrind-based constant-time testing
+COPY valgrind-try-patch-20250805.txt /tmp/
+COPY valgrind-varlat-patch-20250805.txt /tmp/
+COPY valgrind-varlat-sup-block.txt /tmp/
+
+RUN git clone git://sourceware.org/git/valgrind.git /tmp/valgrind_varlat_src && \
+    cd /tmp/valgrind_varlat_src && \
+    git checkout 112f1080b7c21e37dfce0a2e589d0dc7aa115afa && \
+    git apply /tmp/valgrind-try-patch-20250805.txt && \
+    git apply /tmp/valgrind-varlat-patch-20250805.txt && \
+    git apply /tmp/valgrind-varlat-sup-block.txt && \
+    ./autogen.sh && \
+    ./configure --prefix=/opt/valgrind_varlat && \
+    make -j"$(nproc)" && \
+    make install && \
+    mv /opt/valgrind_varlat/bin/valgrind /opt/valgrind_varlat/bin/valgrind_varlat && \
+    cd / && rm -rf /tmp/valgrind_varlat_src /tmp/*.txt
+
+ENV PATH="/opt/valgrind_varlat/bin:${PATH}"
+
 # set JAVA_HOME for liboqs-java builds
 ENV JAVA_HOME="/usr/lib/jvm/default-java"
 
